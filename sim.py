@@ -30,8 +30,7 @@ def Tuple(*args):
   res = Pair(args[0],args[1])
   for a in args[2:]: res = Pair(res,a)
   return res
-    
-#%%
+
 n0 = Num(0)
 n1 = Num(1)
 n2 = Num(2)
@@ -42,3 +41,4 @@ t321 = Tuple(n3,n2,n1)
 
 Tuple(n1,n2,n3) == Tuple(Tuple(n1,n2),n3)
 Tuple(Tuple(n1,n2), Tuple(n1,n2)) == S(S(Tuple(n1,n2)))
+Tuple(n1,n1)
