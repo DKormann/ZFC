@@ -6,3 +6,8 @@ Formula (A = B) : Set[] => bool
 Predicate (R) : Set[] => bool
 Quantifier (∀) : (Var, Formula) => Formula
 Connective (∧) : Formula[] => Formula
+
+
++ 1 2 
+
+and and A B C

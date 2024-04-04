@@ -1,7 +1,7 @@
 
 #%% Logic
-from functools import cached_property
-from typing import Any
+from collections.abc import Iterable
+
 def dedup(*args): return list(set(*args))
 
 class Var:
@@ -61,9 +61,10 @@ class Composer:
     self.arity = arity
     self.inplace = inplace
   def __call__(self, *args):
+    args = [ps(arg) if isinstance(arg, (Iterable)) else arg for arg in args]
+    if not all(isinstance(arg, self.arg_type) for arg in args): args = [ps(args)]
     if self.arity >= 0 and len(args) != self.arity: raise ValueError(f'{self.name} takes {self.arity} arguments, got {len(args)}')
-    args = args = [arg if isinstance(arg, self.arg_type) else ps(*arg) for arg in args]
-    assert all(isinstance(arg, self.arg_type) for arg in args), f'{self.name} takes {self.arg_type} arguments, got {args}'
+    assert all(isinstance(arg, (self.arg_type)) for arg in args), f'{self.name} takes {self.arg_type} arguments, got {args}'
     return self.res_type(self, *args)
   def __repr__(self): return self.name
 
@@ -116,15 +117,36 @@ P = Predicate('P', 1)
 Q = Predicate('Q', 1)
 N = Var('ℕ')
 
-# quick notation
+# parse
 def ps(*args):
   assert 0<len(args)<4, f'invalid arguments: {args}'
-  if len(args) == 1: return args[0]
+  if len(args) == 1: return args[0] if isinstance(args[0], (Var, Composition)) else SET(*args[0]) if isinstance(args[0], set) else ps(*args[0])
   elif len(args) == 2: rel,args = args[0], args[1:]
   elif isinstance(args[0], Quantifier): rel, args = args[0], args[1:]
   else:  rel, args = args[1], args[:1] + args[2:]
   args = [a if isinstance(a, (Composition, Var)) else ps(*a) for a in args]
   return rel(*args)
+
+import re
+def strps(s:str):  return eval("ps({})".format(re.sub(r'\s+', ', ', s)))
+
+#%%
+
+def test():
+  V1 = Var('V1')
+  V2 = Var('V2')
+  V3 = Var('V3')
+  S1 = SET(V1)
+  S2 = ps({V1})
+  assert S1 == S2
+  assert isinstance(S1, SetTerm)
+  assert isinstance(S2, SetTerm)
+  assert isinstance(ps({V1,V2,V3}), SetTerm)
+  f1 = Function('f', 1)
+  assert f1(V1) == ps(f1, V1)
+  assert FORALL(V1, IN(V1, V2)) == ps(FORALL(V1, (V1, IN, V2)))
+  assert all(i == NOT(V1, IN, EMPTY) for i in [NOT(IN(V1, EMPTY)), ps(NOT, (V1, IN, EMPTY))])
+test()
 
 # %% ZFC
 
@@ -142,6 +164,8 @@ def_intersection = FORALL(X, FORALL(Y, FORALL(Z, IFF(IN(Z, INTER(X,Y)), AND(IN(Z
 def_difference = FORALL(X, FORALL(Y, FORALL(Z, IFF(IN(Z, DIFF(X,Y)), AND(IN(Z,X), NOT(IN(Z,Y)))))))
 #def N: ∀X. (X ∈ ℕ ↔ X = ø ∨ ∃Y. (X = 
 
+
+assert def_empty == strps("FORALL(X NOT((X IN EMPTY)))")
 
 #%% Axioms
 
@@ -166,9 +190,9 @@ ZF = [
   # 8. Regularity: ∀A. (A ≠ ∅ → ∃B. (B ∈ A ∧ B ∩ A = ∅))
   FORALL(A, IMPLIES(NOT((A, EQUAL, EMPTY)), EXISTS(B, AND((B, IN, A), ((B, INTER, A), EQUAL, EMPTY)))))
 ]
-
-print("ZF axioms:")
-for axiom in ZF: print(axiom)
+if __name__ == '__main__':
+  print("ZF axioms:")
+  for axiom in ZF: print(axiom)
 
 EXONE = Quantifier('∃!', 2)
 def_exone = IFF(EXONE(X, P(X)), AND(EXISTS(X, P(X)), FORALL(X, FORALL(Y, IMPLIES(AND(P(X), P(Y)), EQUAL(X, Y))))))
