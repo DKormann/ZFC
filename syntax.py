@@ -4,11 +4,13 @@ from collections.abc import Iterable
 
 def dedup(*args): return list(set(*args))
 
+
 class Var:
   def __init__(self, name = None):
     self.name = name
     self.atoms = [self]
   def __repr__(self): return self.name if self.name is not None else '<Var>'
+  def __hash__(self): return hash(id(self))
 
 EMPTY = Var('ø')
 A,B,C,X,Y,Z = [Var(n) for n in "ABCXYZ"]
@@ -27,6 +29,7 @@ class Composition:
       if name is None or name in self.names: name = self.createname()
       self.names.add(name)
       self.namemap[atom] = name
+    self.hash = hash((id(self.rel), *map(hash, self.args)))
   
   def repr(self, namemap):
     argnames = [self.namemap[a] if isinstance(a,Var) else a.repr(namemap) for a in self.args]
@@ -37,9 +40,7 @@ class Composition:
   def __repr__(self):  return self.repr(self.namemap)
 
   def __eq__ (self, other):
-    return isinstance(other, Composition) and \
-      self.rel == other.rel and \
-      self.args == other.args
+    return isinstance(other, Composition) and self.hash == other.hash
   
   def polnish(self): return f'{self.namemap[self.rel]} {" ".join([a.polnish() if hasattr(a, "polnish") else str(a) for a in self.args])}'
   
@@ -52,6 +53,9 @@ class Composition:
       if newname not in self.names:
         self.names.add(newname)
         return newname
+  
+  def __hash__(self):return self.hash
+
 
 class Composer:
   arg_type = Var
@@ -97,14 +101,19 @@ class Quantifier(Composer):
   res_type = Formula
   def __call__ (self, var, form):
     assert isinstance(var, Var) or all(isinstance(v,Var) for v in var), f'{self.name} takes a variable(s) as the first argument, got {var.__class__.__name__}'
-    assert isinstance(form, Formula) or isinstance(form:=ps(*form),Formula), f'{self.name} takes a predicate as the second argument, got {form}'
+    assert isinstance(form, (Formula,FormulaVar)) or isinstance(form:=ps(*form),Formula), f'{self.name} takes a predicate as the second argument, got {form}'
     return self.res_type(self, var, form)
 
 FORALL = Quantifier('∀', 2)
 EXISTS = Quantifier('∃', 2)
 
+class FormulaVar(Var): pass
+
+alpha = FormulaVar('φ')
+beta = FormulaVar('ψ')
+
 class Connective(Composer):
-  arg_type = Formula
+  arg_type = Formula, FormulaVar
   res_type = Formula
 
 NOT = Connective('¬', 1)
@@ -124,13 +133,13 @@ def ps(*args):
   elif len(args) == 2: rel,args = args[0], args[1:]
   elif isinstance(args[0], Quantifier): rel, args = args[0], args[1:]
   else:  rel, args = args[1], args[:1] + args[2:]
-  args = [a if isinstance(a, (Composition, Var)) else ps(*a) for a in args]
+  args = [a if isinstance(a, (Composition, Var)) else ps(a) for a in args]
   return rel(*args)
 
 import re
 def strps(s:str):  return eval("ps({})".format(re.sub(r'\s+', ', ', s)))
 
-#%%
+#%% testing
 
 def test():
   V1 = Var('V1')
@@ -146,6 +155,12 @@ def test():
   assert f1(V1) == ps(f1, V1)
   assert FORALL(V1, IN(V1, V2)) == ps(FORALL(V1, (V1, IN, V2)))
   assert all(i == NOT(V1, IN, EMPTY) for i in [NOT(IN(V1, EMPTY)), ps(NOT, (V1, IN, EMPTY))])
+  ps({V1,V2,V3}, IN, V1)
+  assert type(AND(alpha, beta)) == Formula
+  assert hash(A) != hash(Var('A'))
+  assert hash(SET(A)) == hash(SET(A))
+  FORALL(A, FormulaVar())
+
 test()
 
 # %% ZFC
@@ -219,3 +234,20 @@ def_getpair = FORALL(A, FORALL(B, ISPAIROF(getpair(A,B), A, B)))
 ISFUNCTION = Predicate('is_function', 1)
 def_function = FORALL(A, (ISFUNCTION(A), IMPLIES, FORALL(X, FORALL(Y, FORALL(Z, (((getpair(X,Y), IN, A), AND, (getpair(X,Z), IN, A)), IMPLIES, (Y, EQUAL, Z)))))))
 #%%
+
+ZERO = Var('0')
+SUCC = Function('σ',1)
+
+PEANO = [
+    IN(ZERO, N),
+    FORALL(X, ((X, IN, N), IMPLIES, (SUCC(X), IN, N))),
+    FORALL(B, (((ZERO, IN, B), AND, FORALL(X, ((X, IN, B), IMPLIES, (SUCC(X), IN, B)))), IMPLIES, FORALL(X, ((X, IN, B), IMPLIES, (X, IN, N))))),
+]
+
+PEANO
+
+# %%
+# s = Function('s',1)
+# FORALL (P, (P(ZERO), AND, FORALL(Y, (P(Y), IMPLIES, P(s(Y))))))
+
+# %%

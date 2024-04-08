@@ -8,15 +8,12 @@ class S:
     return f'{self.data}'
   def __hash__(self):
     if self.data == set(): return 0
-    hashes = [hash(e) for e in self.data]
-    return hash(tuple(sorted(hashes)))
-  def __eq__(self, other):
-    return isinstance(other, S) and self.data == other.data
-  
-  def u(self,other):
-    res = S()
-    res.data = self.data.union(other.data)
-    return res
+    return hash(tuple(sorted([hash(e) for e in self.data])))
+  def __eq__(self, other): return isinstance(other, S) and self.data == other.data
+  def u(self,other): return S(*self.data.union(other.data))
+  def d(self,other): return S(*self.data.difference(other.data))
+  def elemof(self,other): return self in other.data
+  def sub(self,other): return all(e in other.data for e in self.data)
 
 def Num(n):
   if n == 0: return S()
@@ -42,3 +39,20 @@ t321 = Tuple(n3,n2,n1)
 Tuple(n1,n2,n3) == Tuple(Tuple(n1,n2),n3)
 Tuple(Tuple(n1,n2), Tuple(n1,n2)) == S(S(Tuple(n1,n2)))
 Tuple(n1,n1)
+
+#%%
+def P(x:S):
+  def fn(ls):
+    if ls == []: return [S()]
+    head = ls[0]
+    tail = ls[1:]
+    tail = fn(tail)
+    res = []
+    for t in tail:
+      res.append(t.u(S(head)))
+      res.append(t)
+    return res
+  return S(*fn(list(x.data)))
+    
+
+P(n2)
