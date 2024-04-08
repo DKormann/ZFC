@@ -1,10 +1,10 @@
 #%%
 from syntax import *
-from typing import Union
 #%%
 alpha = FormulaVar('α')
 beta = FormulaVar('β')
 
+# basically sequent calculus rules
 rules=[
   [alpha, OR(alpha, beta)],
   [OR(alpha, alpha), alpha],
@@ -15,7 +15,6 @@ rules=[
   [OR(alpha, NOT(alpha))],
   [alpha, beta, NOT(OR(NOT(alpha), NOT(beta)))]
 ]
-
 rules
 
 #%%
@@ -26,75 +25,39 @@ def replaceAll(tree:Composition, old, new):
   if newargs != tree.args: return tree.__class__(tree.rel, *newargs)
   return tree
 
-
-def comp(c:Composition,r:Composition,map:dict):
-  print('comp:',c,r)
-  if c.rel != r.rel or len(c.args) != len(r.args): return False
-  for ca, ra in zip(c.args, r.args):
-    print("argcomp:",ca,ra)
-    if ca == ra: continue
-    if isinstance(ra, FormulaVar) and isinstance(ca, Formula):
-      if not ra in map:
-        map[ra] = ca
-      else:
-        if map[ra] != ca: return False
-    else: 
-      if isinstance(ca, Var) or not comp (ca,ra,map): return False
-  return True
-
-def comp(c,r, map:dict):
-  if isinstance(r,FormulaVar):
-    if r in map: return map[r] == c
-    map[r] = c
-    return True
-  if c.rel != r.rel or len(c.args) != len(r.args): return False
-  for ca, ra in zip(c.args, r.args):
-    print("argcomp:",ca,ra)
-    if ca == ra: continue
-    if isinstance(ca, Var) or not comp(ca,ra,map): return False
-  return True
-    
-
-
-a = AND((A,IN,A),FORALL(B,(B, IN, B)))
-b = AND((A,IN,A),FORALL(B, alpha))
-
-comp(a,b, {})
-
+def comp(c,r, r2c):
+  if isinstance(r,FormulaVar): r2c[r] = r2c.get(r,c)
+  if r in r2c: return r2c[r] == c
+  return not any(ca != ra and not(isinstance(ca, Formula) and comp(ca,ra,r2c)) for ca, ra in zip(*map(lambda x:[x.rel,len(x.args),*x.args],[c,r])))
 
 def check(claim,rule):
   map = {}
-  for c,r in zip(claim, rule):
-    if not comp(c,r,map): return False
-  return True
-
-
-a = IN(A,B)
-b = IN(B,A)
-
-check([a,OR(a,b)], rules[0])
-
-#%%
-
-
+  return all(comp(c,r,map) for c,r in zip(claim, rule))
 
 #%%
 
 def test():
-
   A, B = Var('A'), Var('B')
   a = IN(A,B)
+  b = IN(B,A)
   assert id(a) == id(replaceAll(a,A,A))
   assert a != replaceAll(a,A,B)
   
-  b = IN(B,A)
   assert not comp(a,b,{})
   assert comp(a,a,{})
   assert comp(AND(a,b), AND(a,beta),{})
   assert not comp(AND(a,b), AND(alpha, alpha),{})
   assert not comp(AND(a,b), OR(a,b),{})
+  assert not (comp (AND(a,AND(a,b)), AND(a,OR(a,b)),{}))
+
+  assert check([a,OR(a,b)], rules[0])
+  assert not check([a,OR(a,b)], rules[1])
+  assert not check([a,OR(b,a)], rules[0])
+  assert check([a,OR(a,a)], rules[0])
+  assert check([OR(a,NOT(a))],rules[6])
+  assert check([a,OR(b,b),NOT(OR(NOT(a), NOT(OR(b,b))))],rules[7])
   
 test()
 
-
 # %%
+
