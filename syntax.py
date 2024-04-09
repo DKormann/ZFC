@@ -56,7 +56,6 @@ class Composition:
   
   def __hash__(self):return self.hash
 
-
 class Composer:
   arg_type = Var
   res_type = Composition
@@ -66,7 +65,9 @@ class Composer:
     self.inplace = inplace
   def __call__(self, *args):
     args = [ps(arg) if isinstance(arg, (Iterable)) else arg for arg in args]
-    if not all(isinstance(arg, self.arg_type) for arg in args): args = [ps(args)]
+    if not all(isinstance(arg, self.arg_type) for arg in args): 
+      try: args = [ps(args)]
+      except TypeError: raise TypeError(f"{self} takes {self.arg_type} got {[arg for arg in args if not isinstance(arg, self.arg_type)]}")
     if self.arity >= 0 and len(args) != self.arity: raise ValueError(f'{self.name} takes {self.arity} arguments, got {len(args)}')
     assert all(isinstance(arg, (self.arg_type)) for arg in args), f'{self.name} takes {self.arg_type} arguments, got {args}'
     return self.res_type(self, *args)
@@ -138,6 +139,8 @@ def ps(*args):
 
 import re
 def strps(s:str):  return eval("ps({})".format(re.sub(r'\s+', ', ', s)))
+
+# %%
 
 #%% testing
 
@@ -247,7 +250,6 @@ PEANO = [
 PEANO
 
 # %%
-# s = Function('s',1)
-# FORALL (P, (P(ZERO), AND, FORALL(Y, (P(Y), IMPLIES, P(s(Y))))))
 
-# %%
+
+f = EQUAL(A,B)

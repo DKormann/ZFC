@@ -13,8 +13,9 @@ Connective (∧) : Formula[] => Formula
 and and A B C
 
 
-∀B((0 ∈ B ∧ ∀X(X ∈ B → σX ∈ B)) → ℕ ⊆ B)
+∀B((0 ∈ B ∧ ∀X(X ∈ B → σX ∈ B)) → ∀Y (Y ∈ B))
 
+∀P((P(0) ∧ ∀X(P(X()) → P(σX))) → ∀Y (P(Y)))
 
 
 # sequent calculus
